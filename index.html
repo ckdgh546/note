@@ -96,11 +96,11 @@ button:active{opacity:.55}
 #scroller::-webkit-scrollbar{display:none}
 .slide{flex:none;width:100%;height:100%;overflow:auto;scroll-snap-align:start;scroll-snap-stop:always;padding:14px 16px 110px}
 #scroller.lock,#scroller.lock .slide{overflow:hidden}
-.page{position:relative;width:var(--pw);height:calc(var(--pw) * 1.414);margin:0 auto;background-color:var(--paper);border-radius:4px;box-shadow:0 1px 2px rgba(20,30,50,.12),0 4px 14px rgba(20,30,50,.08);touch-action:pan-x pan-y;overflow:hidden}
+.page{position:relative;width:var(--pw);height:calc(var(--pw) * var(--pr,1.414));margin:0 auto;background-color:var(--paper);border-radius:4px;box-shadow:0 1px 2px rgba(20,30,50,.12),0 4px 14px rgba(20,30,50,.08);touch-action:pan-x pan-y;overflow:hidden}
 .ghostpage{background:none;box-shadow:none;border:2px dashed var(--faint);display:flex;align-items:center;justify-content:center;text-align:center;color:var(--sub);font-weight:700;font-size:17px;line-height:1.6}
-.paper-lined{background-image:linear-gradient(to bottom,transparent calc(100% - 1px),#d7dde5 calc(100% - 1px));background-size:100% calc(var(--pw) * .045)}
-.paper-grid{background-image:linear-gradient(#e1e6ec 1px,transparent 1px),linear-gradient(90deg,#e1e6ec 1px,transparent 1px);background-size:calc(var(--pw) * .04) calc(var(--pw) * .04)}
-.paper-dot{background-image:radial-gradient(#bcc5d0 1.3px,transparent 1.5px);background-size:calc(var(--pw) * .04) calc(var(--pw) * .04)}
+.paper-lined{background-image:linear-gradient(to bottom,transparent calc(100% - 1px),#d7dde5 calc(100% - 1px));background-size:100% calc(var(--pw) * .045 * var(--pk,1))}
+.paper-grid{background-image:linear-gradient(#e1e6ec 1px,transparent 1px),linear-gradient(90deg,#e1e6ec 1px,transparent 1px);background-size:calc(var(--pw) * .04 * var(--pk,1)) calc(var(--pw) * .04 * var(--pk,1))}
+.paper-dot{background-image:radial-gradient(#bcc5d0 1.3px,transparent 1.5px);background-size:calc(var(--pw) * .04 * var(--pk,1)) calc(var(--pw) * .04 * var(--pk,1))}
 .page canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
 .page .ink{z-index:1}
 #live{z-index:3;pointer-events:none}
@@ -121,6 +121,14 @@ body.t-text .tx:focus{box-shadow:0 0 0 2px #2f6fed}
 .f input,.f textarea{border:0;background:var(--fill);border-radius:12px;padding:12px 14px;min-height:48px;width:100%;font-size:16px}
 .f textarea{min-height:96px;resize:vertical}
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.szprev{display:flex;align-items:center;justify-content:center;height:96px;margin-top:12px}
+.szprev i{display:block;background:var(--paper);border:1.5px solid var(--line);border-radius:3px;box-shadow:0 2px 6px rgba(20,30,50,.08)}
+.radio{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.radio label{display:flex;gap:10px;align-items:flex-start;background:var(--fill);border-radius:12px;padding:12px;cursor:pointer;font-size:14px;color:var(--ink);font-weight:600}
+.radio small{display:block;color:var(--sub);font-weight:500;margin-top:2px}
+.radio input{margin-top:2px;width:18px;height:18px;min-height:0;padding:0;flex:none;accent-color:var(--accent)}
+.radio span{flex:1}
 .menu{display:flex;flex-direction:column;margin-top:6px}
 .menu button{appearance:none;border:0;border-top:1px solid var(--line);background:none;text-align:left;padding:14px 4px;font-size:16px;font-weight:600;cursor:pointer;min-height:52px}
 .menu button:first-child{border-top:0}
@@ -213,7 +221,17 @@ let uidN=0;
 const uid=()=>Date.now().toString(36)+(uidN++%1296).toString(36)+Math.random().toString(36).slice(2,5);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const within=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej({code:'timeout'}),ms))]);
-const PW=1000,PH=1414;
+const PW=1000;
+/* 종이 크기: 노트마다 다르다(nb.size, mm). 가로 폭을 늘 1000으로 두고 세로 길이(PH)만 비율에 맞춘다.
+   PK: A4 세로 폭(210mm)에 견준 실제 크기 비율. 큰 종이일수록 펜·글자·줄 간격을 그만큼 가늘게 해서 실제 크기가 같게 보인다 */
+let PH=1414,PK=1;
+const PAPER_SIZES=[['A1',594,841],['A2',420,594],['A3',297,420],['A4',210,297],['A5',148,210],['B5',182,257]];
+function nbSize(nb){const z=nb&&nb.size;return z&&z.w>0&&z.h>0?z:{name:'A4',w:210,h:297};}
+const sizeLabel=z=>(z.name&&z.name!=='free'?z.name:'자유 '+Math.round(z.w)+'×'+Math.round(z.h)+'mm')+' · '+(z.w>z.h?'가로':z.w<z.h?'세로':'정사각형');
+function applySize(nb){const z=nbSize(nb);PH=Math.round(1000*z.h/z.w);PK=210/z.w;
+  const r=document.documentElement.style;r.setProperty('--pr',String(PH/1000));r.setProperty('--pk',String(PK));}
+const sz=(tool,i)=>SIZES[tool][i]*PK;
+const zMax=()=>Math.min(6,Math.max(3,3/PK));
 const COLORS=['#191f28','#2f6fed','#e5484d','#009472','#f08c00','#7c4dff'];
 const HL_COLORS=['#ffe066','#8ce99a','#74c0fc','#ffa8a8','#eebefa','#ffc078'];
 const SIZES={pencil:[2.4,3.4,5],pen:[2,3.2,5],brush:[6,11,18],hl:[18,28,40],eraser:[8,16,30],text:[18,24,34],shape:[2,3.4,6],table:[1.6,2.6,4]};
@@ -345,9 +363,10 @@ function drawStroke(ctx,s,k,dx,dy){
 }
 function drawPaper(ctx,paper,k){
   ctx.fillStyle='#ffffff';ctx.fillRect(0,0,PW*k,PH*k);
-  if(paper==='lined'){ctx.strokeStyle='#d7dde5';ctx.lineWidth=Math.max(1,k);ctx.beginPath();for(let y=45;y<PH;y+=45){ctx.moveTo(0,y*k);ctx.lineTo(PW*k,y*k);}ctx.stroke();}
-  else if(paper==='grid'){ctx.strokeStyle='#e1e6ec';ctx.lineWidth=Math.max(1,k);ctx.beginPath();for(let y=0;y<PH;y+=40){ctx.moveTo(0,y*k);ctx.lineTo(PW*k,y*k);}for(let x=0;x<PW;x+=40){ctx.moveTo(x*k,0);ctx.lineTo(x*k,PH*k);}ctx.stroke();}
-  else if(paper==='dot'){ctx.fillStyle='#bcc5d0';for(let y=20;y<PH;y+=40)for(let x=20;x<PW;x+=40){ctx.beginPath();ctx.arc(x*k,y*k,1.4*k,0,Math.PI*2);ctx.fill();}}
+  const g45=45*PK,g40=40*PK;
+  if(paper==='lined'){ctx.strokeStyle='#d7dde5';ctx.lineWidth=Math.max(1,k);ctx.beginPath();for(let y=g45;y<PH;y+=g45){ctx.moveTo(0,y*k);ctx.lineTo(PW*k,y*k);}ctx.stroke();}
+  else if(paper==='grid'){ctx.strokeStyle='#e1e6ec';ctx.lineWidth=Math.max(1,k);ctx.beginPath();for(let y=0;y<PH;y+=g40){ctx.moveTo(0,y*k);ctx.lineTo(PW*k,y*k);}for(let x=0;x<PW;x+=g40){ctx.moveTo(x*k,0);ctx.lineTo(x*k,PH*k);}ctx.stroke();}
+  else if(paper==='dot'){ctx.fillStyle='#bcc5d0';for(let y=g40/2;y<PH;y+=g40)for(let x=g40/2;x<PW;x+=g40){ctx.beginPath();ctx.arc(x*k,y*k,1.4*PK*k,0,Math.PI*2);ctx.fill();}}
 }
 const textW=t=>t.w||(PW-t.x-24);
 const fontOf=px=>px+'px '+getComputedStyle(document.body).fontFamily;
@@ -526,7 +545,7 @@ function onDown(e){
   attachLive(pid);
   if(tool==='eraser'){DRAW.snapped=false;eraseAt(x,y);if(DRAW.inkDirty){DRAW.inkDirty=false;renderPage(pid);}return;}
   if(tool==='shape'||tool==='table'){DRAW.shape=true;return;}
-  DRAW.s={id:uid(),t:DRAW_TOOLS[tool],c:S.color[tool],w:SIZES[tool][S.size[tool]],p:[x,y,DRAW.pr]};DRAW.done=0;paintLive();
+  DRAW.s={id:uid(),t:DRAW_TOOLS[tool],c:S.color[tool],w:sz(tool,S.size[tool]),p:[x,y,DRAW.pr]};DRAW.done=0;paintLive();
 }
 function onMove(e){
   if(!DRAW||e.pointerId!==DRAW.id)return;e.preventDefault();
@@ -573,7 +592,7 @@ function onUp(e){
     if(D.tool==='table'){ /* 표는 칸에 글자를 칠 수 있는 한 덩어리로 만든다 */
       const L=Math.min(D.x0,D.x1),R=Math.max(D.x0,D.x1),T=Math.min(D.y0,D.y1),B=Math.max(D.y0,D.y1);
       if(R-L<24||B-T<24){if(isTap)tapAction(D.pid,D.cx,D.cy);return;}
-      const o={id:uid(),k:'tbl',x:L,y:T,w:R-L,h:B-T,r:S.rows,c:S.cols,cells:new Array(S.rows*S.cols).fill(''),col:S.color.table,lw:SIZES.table[S.size.table],s:clamp(Math.round((B-T)/S.rows*0.42),14,26)};
+      const o={id:uid(),k:'tbl',x:L,y:T,w:R-L,h:B-T,r:S.rows,c:S.cols,cells:new Array(S.rows*S.cols).fill(''),col:S.color.table,lw:sz('table',S.size.table),s:clamp(Math.round((B-T)/S.rows*0.42),14*PK,26*PK)};
       snap(D.pid);P.objs=P.objs.concat([o]);touchPage(D.pid);renderPage(D.pid);editCell(D.pid,o,0);return;}
     const list=genShape(D);if(!list.length)return;
     snap(D.pid);const ks=new Set();
@@ -604,7 +623,7 @@ function paintLive(){
 function paintShape(){const k=fit(live,DRAW.el),x=live.getContext('2d');x.clearRect(0,0,live.width,live.height);for(const s of genShape(DRAW))drawStroke(x,s,k);}
 /* 끌어서 만든 네모 안에 도형이나 표의 선들을 만든다 */
 function genShape(D){
-  const tool=D.tool,c=S.color[tool],w=SIZES[tool][S.size[tool]],x0=D.x0,y0=D.y0,x1=D.x1,y1=D.y1;
+  const tool=D.tool,c=S.color[tool],w=sz(tool,S.size[tool]),x0=D.x0,y0=D.y0,x1=D.x1,y1=D.y1;
   if(Math.hypot(x1-x0,y1-y0)<8)return [];
   const mk=p=>({t:'p',c,w,g:1,p});
   const L=Math.min(x0,x1),R=Math.max(x0,x1),T=Math.min(y0,y1),B=Math.max(y0,y1);
@@ -646,7 +665,7 @@ function cut(s,x,y,lim){
   return parts.map(pp=>{const o={id:uid(),t:s.t,c:s.c,w:s.w,k:s.k,p:pp};if(s.g)o.g=1;return o;});
 }
 function eraseAt(x,y){
-  const D=DRAW,P=PG[D.pid],r=SIZES.eraser[S.size.eraser],out=[];let changed=false;
+  const D=DRAW,P=PG[D.pid],r=sz('eraser',S.size.eraser),out=[];let changed=false;
   for(const s of P.strokes){
     const b=bbox(s),lim=r+s.w/2;
     if(x<b[0]-lim||x>b[2]+lim||y<b[1]-lim||y>b[3]+lim){out.push(s);continue;}
@@ -734,7 +753,7 @@ async function askGo(){
 }
 function pasteAnswer(){
   if(!SEL||!askSheet.answer)return;const pid=SEL.pid,P=PG[pid];snap(pid);
-  P.texts.push({id:uid(),x:clamp(SEL.x0,20,PW-300),y:Math.min(PH-80,SEL.y1+12),s:SIZES.text[0],c:'#2f6fed',t:askSheet.answer});
+  P.texts.push({id:uid(),x:clamp(SEL.x0,20,PW-300),y:Math.min(PH-80,SEL.y1+12),s:sz('text',0),c:'#2f6fed',t:askSheet.answer});
   touchPage(pid);renderTexts(pid);closeSheet();toast('선택한 부분 아래에 답을 붙였어요');
 }
 /* 손글씨 → 글자: Claude가 읽어 주고, 고친 뒤 손글씨 자리에 넣는다 */
@@ -763,7 +782,7 @@ function applyText(replace){
   snap(pid);
   if(replace)P.strokes=P.strokes.filter(s=>{if(SEL.ids.has(s.id)){touchChunk(pid,s.k);return false;}return true;});
   const x=clamp(SEL.x0,10,PW-180);
-  P.texts.push({id:uid(),x,y:clamp(replace?SEL.y0:SEL.y1+10,6,PH-40),s:clamp(Math.round(h/lines*0.6),16,40),c:'#191f28',t:text,w:clamp(SEL.x1-SEL.x0+20,180,PW-x-10)});
+  P.texts.push({id:uid(),x,y:clamp(replace?SEL.y0:SEL.y1+10,6,PH-40),s:clamp(Math.round(h/lines*0.6),16*PK,40*PK),c:'#191f28',t:text,w:clamp(SEL.x1-SEL.x0+20,180,PW-x-10)});
   touchPage(pid);SEL=null;closeSheet();drawSel();renderPage(pid);renderTexts(pid);toast(replace?'손글씨를 글자로 바꿨어요':'손글씨 아래에 글자를 넣었어요');
 }
 
@@ -800,7 +819,7 @@ function openEd(ed,value){
   if(prev&&PG[prev.pid])renderTexts(prev.pid);if(!prev||prev.pid!==ed.pid)renderTexts(ed.pid);
   try{typer.focus();const n=typer.value.length;typer.setSelectionRange(n,n);}catch(e){}
 }
-function newText(pid,x,y){const s=SIZES.text[S.size.text],X=clamp(x,10,PW-120);openEd({pid,kind:'text',id:uid(),x:X,y:clamp(y-s*0.7,6,PH-40),s,c:S.color.text,w:PW-X-24},'');}
+function newText(pid,x,y){const s=sz('text',S.size.text),X=clamp(x,10,PW-120);openEd({pid,kind:'text',id:uid(),x:X,y:clamp(y-s*0.7,6,PH-40),s,c:S.color.text,w:PW-X-24},'');}
 function editCell(pid,o,i){openEd({pid,kind:'cell',id:o.id,i},o.cells[i]||'');}
 typer.addEventListener('input',growTyper);
 typer.addEventListener('blur',commitEd);
@@ -894,7 +913,7 @@ async function bubRead(){ /* 브라우저가 허락하는 곳에서는 바로 �
 }
 function pasteText(at,str){
   const v=String(str||'').replace(/\s+$/,'');if(!v)return;const P=PG[at.pid];if(!P||!P.loaded)return;
-  snap(at.pid);P.texts.push({id:uid(),x:clamp(at.x,10,PW-160),y:clamp(at.y,6,PH-40),s:SIZES.text[S.size.text],c:S.color.text,t:v});touchPage(at.pid);renderTexts(at.pid);toast('붙여넣었어요');
+  snap(at.pid);P.texts.push({id:uid(),x:clamp(at.x,10,PW-160),y:clamp(at.y,6,PH-40),s:sz('text',S.size.text),c:S.color.text,t:v});touchPage(at.pid);renderTexts(at.pid);toast('붙여넣었어요');
 }
 document.addEventListener('paste',e=>{
   if(!NB)return;const cd=e.clipboardData,tg=e.target&&e.target.closest?e.target:null;
@@ -951,7 +970,8 @@ function holdFire(){
 }
 
 /* ───────── 내보내기 ───────── */
-function makePdf(imgs){ /* JPEG 그림 한 장이 한 쪽인 PDF를 직접 만든다 */
+function makePdf(imgs,mm){ /* mm: 종이 크기 {w,h}(밀리미터) */
+  const PWpt=mm?+(mm.w*72/25.4).toFixed(2):595.28,PHpt=mm?+(mm.h*72/25.4).toFixed(2):841.89; /* JPEG 그림 한 장이 한 쪽인 PDF를 직접 만든다 */
   const te=new TextEncoder(),parts=[],offs=[];let len=0;
   const push=d=>{const b=typeof d==='string'?te.encode(d):d;parts.push(b);len+=b.length;};
   const obj=(n,body)=>{offs[n]=len;push(n+' 0 obj\n');body();push('\nendobj\n');};
@@ -959,7 +979,7 @@ function makePdf(imgs){ /* JPEG 그림 한 장이 한 쪽인 PDF를 직접 만�
   const N=imgs.length,kids=[];for(let i=0;i<N;i++)kids.push((3+i*3)+' 0 R');
   obj(1,()=>push('<< /Type /Catalog /Pages 2 0 R >>'));
   obj(2,()=>push('<< /Type /Pages /Count '+N+' /Kids ['+kids.join(' ')+'] >>'));
-  imgs.forEach((im,i)=>{const pg=3+i*3,ct=pg+1,xo=pg+2,W=595.28,H=841.89,stream='q '+W+' 0 0 '+H+' 0 0 cm /Im0 Do Q';
+  imgs.forEach((im,i)=>{const pg=3+i*3,ct=pg+1,xo=pg+2,W=PWpt,H=PHpt,stream='q '+W+' 0 0 '+H+' 0 0 cm /Im0 Do Q';
     obj(pg,()=>push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+W+' '+H+'] /Resources << /XObject << /Im0 '+xo+' 0 R >> >> /Contents '+ct+' 0 R >>'));
     obj(ct,()=>push('<< /Length '+stream.length+' >>\nstream\n'+stream+'\nendstream'));
     obj(xo,()=>{push('<< /Type /XObject /Subtype /Image /Width '+im.w+' /Height '+im.h+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+im.data.length+' >>\nstream\n');push(im.data);push('\nendstream');});});
@@ -976,12 +996,12 @@ async function saveFile(name,blob){
 }
 const safeName=s=>(s||'노트').replace(/[\\/:*?"<>|]/g,' ').trim().slice(0,60)||'노트';
 async function pageJpeg(pid,W){await loadPage(pid);const c=renderFull(pid,W),b=await toBlob(c,'image/jpeg',0.9);return {data:new Uint8Array(await b.arrayBuffer()),w:c.width,h:c.height,blob:b};}
-async function exportPdf(){closeSheet();toast('PDF를 만드는 중이에요');const imgs=[];for(const pid of NB.pages)imgs.push(await pageJpeg(pid,1654));await saveFile(safeName(NB.title)+'.pdf',makePdf(imgs));}
+async function exportPdf(){closeSheet();toast('PDF를 만드는 중이에요');const imgs=[];for(const pid of NB.pages)imgs.push(await pageJpeg(pid,1654));await saveFile(safeName(NB.title)+'.pdf',makePdf(imgs,nbSize(NB)));}
 async function exportJpg(){closeSheet();const pid=currentPid(),n=NB.pages.indexOf(pid)+1,im=await pageJpeg(pid,2000);await saveFile(safeName(NB.title)+'-'+n+'쪽.jpg',im.blob);}
 
 /* ───────── 편집기 화면: 쪽은 옆으로 넘기고, 마지막 쪽에서 더 넘기면 새 쪽 ───────── */
 let io=null,settleT=0,navUntil=0;   /* navUntil: 단추로 넘기는 움직임이 끝날 때까지는 '지금 쪽'을 다시 재지 않는다 */
-function setPw(){const base=Math.max(280,Math.min(sc.clientWidth-32,920));document.documentElement.style.setProperty('--pw',Math.round(base*S.zoom)+'px');}
+function setPw(){const base=Math.max(280,Math.min(sc.clientWidth-32,PH<PW?1400:920));document.documentElement.style.setProperty('--pw',Math.round(base*S.zoom)+'px');}
 const currentPid=()=>NB.pages[clamp(curIdx,0,NB.pages.length-1)];
 function goPage(i,smooth){const to=clamp(i,0,NB.pages.length-1);if(to!==curIdx)closeEd();curIdx=to;const left=curIdx*sc.clientWidth;if(smooth&&sc.scrollTo){navUntil=performance.now()+800;sc.scrollTo({left,behavior:'smooth'});}else sc.scrollLeft=left;showPageNo();ensureNear();}
 /* 지금 쪽과 양옆 쪽은 화면 감지(IntersectionObserver)를 기다리지 않고 바로 불러와 그린다 */
@@ -1047,7 +1067,7 @@ async function delPage(){
 function zoomAt(z,fromX,fromY,toX,toY){
   const P=PG[currentPid()];if(!P||!P.el)return;const sl=P.slide;if(toX===undefined){toX=fromX;toY=fromY;}
   let r=P.el.getBoundingClientRect();const fx=(fromX-r.left)/r.width,fy=(fromY-r.top)/r.height;
-  const z2=clamp(z,1/3,3);if(z2!==S.zoom){S.zoom=z2;setPw();r=P.el.getBoundingClientRect();}
+  const z2=clamp(z,1/3,zMax());if(z2!==S.zoom){S.zoom=z2;setPw();r=P.el.getBoundingClientRect();}
   sl.scrollLeft+=r.left+fx*r.width-toX;sl.scrollTop+=r.top+fy*r.height-toY;
 }
 function zoomDone(){if(!NB)return;NB.pages.forEach(renderPage);drawSel();if(ED)placeTyper();}
@@ -1080,7 +1100,7 @@ function setTool(t){
   if(t!=='text'&&t!=='table')closeEd();
   renderOpts();
   if(t==='text'&&was!=='text'&&NB){ /* 고르자마자 바로 칠 수 있게 보이는 곳 위쪽에 글 상자를 연다 */
-    const pid=currentPid(),P=PG[pid];if(P&&P.loaded&&P.el&&!(ED&&ED.kind==='text')){const v=visibleRect(P);newText(pid,v.x+40,v.y+50+SIZES.text[S.size.text]*0.7);}}
+    const pid=currentPid(),P=PG[pid];if(P&&P.loaded&&P.el&&!(ED&&ED.kind==='text')){const v=visibleRect(P);newText(pid,v.x+40,v.y+50+sz('text',S.size.text)*0.7);}}
   /* 처음 고를 때 한 번만 쓰는 법을 알려 준다 */
   const tip={text:'바로 치면 돼요. 다른 곳에 쓰려면 그 자리를 누르세요',shape:'모양을 고르고 종이 위를 끌어서 그려요',table:'줄과 칸 수를 고르고 끌어서 그려요. 칸을 누르면 글자를 칠 수 있어요'}[t];
   if(tip&&!setTool.seen[t]){setTool.seen[t]=1;toast(tip);}
@@ -1089,7 +1109,7 @@ setTool.seen={};
 async function openNb(id){
   let nb=null;try{nb=await within(Store.get('nb/'+id),12000);}catch(e){}
   if(!nb){toast('이 노트를 열 수 없어요. 잠시 뒤에 다시 해 주세요');return;}
-  NB=nb;NBID=id;for(const k in PG)delete PG[k];UNDO=[];REDO=[];SEL=null;S.zoom=1;edited=false;saveFail=false;backForce=false;dirty={meta:false,pages:new Set(),chunks:new Set()};
+  NB=nb;NBID=id;applySize(nb);for(const k in PG)delete PG[k];UNDO=[];REDO=[];SEL=null;S.zoom=1;edited=false;saveFail=false;backForce=false;dirty={meta:false,pages:new Set(),chunks:new Set()};
   $('#lib').hidden=true;$('#ed').hidden=false;$('#title').textContent=NB.title;setPw();buildPages(0);renderOpts();undoBtns();setStat();watchNote(id);
 }
 function makeThumb(){
@@ -1283,7 +1303,7 @@ async function reloadNote(){
     stopWatch();hideBub();ED=null;typer.remove();if(io)io.disconnect();clearTimeout(saveTimer);NB=null;NBID=null;SEL=null;dirty={meta:false,pages:new Set(),chunks:new Set()};
     $('#selbar').hidden=true;$('#ed').hidden=true;$('#lib').hidden=false;renderLib();toast('이 노트는 다른 기기에서 지워졌어요');return;}
   if(!nb||busy())return;
-  commitEd();NB=nb;for(const k in PG)delete PG[k];UNDO=[];REDO=[];undoBtns();$('#title').textContent=NB.title;
+  commitEd();NB=nb;const resized=PH!==Math.round(1000*nbSize(nb).h/nbSize(nb).w)||Math.abs(PK-210/nbSize(nb).w)>1e-9;applySize(nb);if(resized){S.zoom=1;setPw();}for(const k in PG)delete PG[k];UNDO=[];REDO=[];undoBtns();$('#title').textContent=NB.title;
   buildPages(Math.min(at,NB.pages.length-1));toast('다른 기기에서 바뀐 내용을 불러왔어요');
 }
 function onVisible(){
@@ -1328,18 +1348,78 @@ async function renderLib(){
   if(Store.mode==='local')w.textContent=FRAMED?'노트가 이 기기 브라우저에만 저장돼요. 중요한 노트는 PDF로 내보내 두세요.':'지금은 노트가 이 기기에만 저장돼요. 앱으로 설치한 뒤 "기기 연동"을 켜면 다른 기기에서도 같은 노트가 보여요.';
   if(Store.mode==='memory')w.textContent='지금은 저장이 안 되는 상태예요. 창을 닫으면 사라져요.';
   if(!list.length){grid.innerHTML='<div class="empty">아직 노트가 없어요. 오른쪽 위 "새 노트"로 시작해 보세요</div>';return;}
-  grid.innerHTML=list.map(n=>'<div class="nbwrap"><button type="button" class="nb" data-act="nb-open" data-id="'+esc(n.id)+'"><span class="cover">'+(n.data.thumb?'<img alt="" src="'+esc(n.data.thumb)+'">':'')+'</span><span><b>'+esc(n.data.title)+'</b><small>'+fmtDate(n.data.updated||n.data.created)+' · '+(n.data.pages||[]).length+'쪽</small></span></button>'+
+  grid.innerHTML=list.map(n=>'<div class="nbwrap"><button type="button" class="nb" data-act="nb-open" data-id="'+esc(n.id)+'"><span class="cover" style="aspect-ratio:'+nbSize(n.data).w+'/'+nbSize(n.data).h+'">'+(n.data.thumb?'<img alt="" src="'+esc(n.data.thumb)+'">':'')+'</span><span><b>'+esc(n.data.title)+'</b><small>'+fmtDate(n.data.updated||n.data.created)+' · '+(n.data.pages||[]).length+'쪽</small></span></button>'+
     '<button type="button" class="nbmore" data-act="nb-menu" data-id="'+esc(n.id)+'" aria-label="'+esc(n.data.title)+' 메뉴">⋯</button></div>').join('');
+}
+/* ───────── 종이 크기 고르기(새 노트·크기 바꾸기 함께 씀) ───────── */
+function sizePicker(px,z){
+  const name=z.name&&z.name!=='free'&&PAPER_SIZES.some(p=>p[0]===z.name)?z.name:'free',land=z.w>z.h;
+  return '<div class="f"><label>크기</label><div class="chips" id="'+px+'-size">'+PAPER_SIZES.map(p=>'<button type="button" class="chip" data-act="sz-pick" data-px="'+px+'" data-v="'+p[0]+'" aria-pressed="'+(name===p[0])+'">'+p[0]+'</button>').join('')+
+    '<button type="button" class="chip" data-act="sz-pick" data-px="'+px+'" data-v="free" aria-pressed="'+(name==='free')+'">자유</button></div></div>'+
+    '<div class="f" id="'+px+'-orirow"'+(name==='free'?' hidden':'')+'><label>방향</label><div class="chips" id="'+px+'-ori"><button type="button" class="chip" data-act="sz-ori" data-px="'+px+'" data-v="p" aria-pressed="'+!land+'">세로</button><button type="button" class="chip" data-act="sz-ori" data-px="'+px+'" data-v="l" aria-pressed="'+land+'">가로</button></div></div>'+
+    '<div class="f2" id="'+px+'-free"'+(name==='free'?'':' hidden')+'><div class="f"><label for="'+px+'-w">가로(mm)</label><input id="'+px+'-w" type="number" inputmode="numeric" min="50" max="2000" value="'+Math.round(z.w)+'"></div><div class="f"><label for="'+px+'-h">세로(mm)</label><input id="'+px+'-h" type="number" inputmode="numeric" min="50" max="2000" value="'+Math.round(z.h)+'"></div></div>'+
+    '<div class="szprev" id="'+px+'-prev"></div><p class="tiny" id="'+px+'-desc" style="text-align:center;margin-top:4px"></p>';
+}
+/* 고른 값을 읽는다. 잘못됐으면 안내하고 null */
+function readSize(px){
+  const nb=$('#'+px+'-size [aria-pressed=true]'),name=nb?nb.dataset.v:'A4';
+  if(name==='free'){const w=+$('#'+px+'-w').value,h=+$('#'+px+'-h').value;
+    if(!(w>=50&&w<=2000&&h>=50&&h<=2000)){toast('가로·세로는 50~2000mm 사이로 적어 주세요');return null;}
+    if(Math.max(w/h,h/w)>5){toast('가로·세로 비율이 너무 길어요. 5배 안쪽으로 해 주세요');return null;}
+    return {name:'free',w:Math.round(w),h:Math.round(h)};}
+  const p=PAPER_SIZES.find(x=>x[0]===name)||PAPER_SIZES[3],land=!!$('#'+px+'-ori [data-v=l][aria-pressed=true]');
+  return {name:p[0],w:land?p[2]:p[1],h:land?p[1]:p[2]};
+}
+function sizePrev(px){
+  const box=$('#'+px+'-prev');if(!box)return;const nb=$('#'+px+'-size [aria-pressed=true]'),free=nb&&nb.dataset.v==='free';
+  let w,h;if(free){w=+$('#'+px+'-w').value||1;h=+$('#'+px+'-h').value||1;}else{const z=readSize(px);w=z.w;h=z.h;}
+  const k=88/Math.max(w,h);box.innerHTML='<i style="width:'+Math.max(8,Math.round(w*k))+'px;height:'+Math.max(8,Math.round(h*k))+'px"></i>';
+  const d=$('#'+px+'-desc');if(d)d.textContent=Math.round(w)+' × '+Math.round(h)+'mm';
 }
 function newNbSheet(){
   const d=new Date();
   openSheet('새 노트','<div class="f"><label for="n-title">노트 이름</label><input id="n-title" autocomplete="off" value="'+(d.getMonth()+1)+'월 '+d.getDate()+'일 노트"></div>'+
+    sizePicker('n',{name:'A4',w:210,h:297})+
     '<div class="f"><label>종이</label><div class="chips" id="n-paper">'+PAPERS.map((p,i)=>'<button type="button" class="chip" data-act="pick" data-v="'+p[0]+'" aria-pressed="'+(i===1)+'">'+p[1]+'</button>').join('')+'</div></div>'+
     '<div class="btns"><button type="button" class="btn pri grow" data-act="nb-create">만들기</button></div>');
+  sizePrev('n');
 }
+/* 만든 노트의 크기·방향 바꾸기.
+   keep: 적은 것의 실제 크기는 그대로(왼쪽 위 기준, 종이가 작아지면 넘치는 부분은 잘려 보이지만 지워지지는 않아서 다시 키우면 돌아온다)
+   fit: 쪽 내용 전체를 새 종이 안에 들어가게 같은 비율로 줄인다(커질 때는 그대로) */
+function resizeSheet(){
+  const z=nbSize(NB);
+  openSheet('크기·방향 바꾸기','<p class="tiny" style="margin-top:0">지금: '+esc(sizeLabel(z))+'</p>'+sizePicker('r',z)+
+    '<div class="f"><label>적어 둔 내용은</label><div class="radio"><label><input type="radio" name="r-mode" value="keep" checked><span>크기 그대로 두기<small>글씨·그림 크기는 그대로예요. 종이가 작아지면 넘치는 부분이 잘려 보이지만 지워지지는 않아요</small></span></label>'+
+    '<label><input type="radio" name="r-mode" value="fit"><span>새 종이에 맞게 줄이기<small>쪽마다 적은 것 전체가 새 종이 안에 들어오도록 같은 비율로 줄여요</small></span></label></div></div>'+
+    '<div class="btns"><button type="button" class="btn pri grow" data-act="resize-ok">바꾸기</button></div>');
+  sizePrev('r');
+}
+/* 한 쪽의 내용을 왼쪽 위 기준으로 f배 */
+function scalePage(P,f){
+  for(const s of P.strokes){const p=s.p;for(let i=0;i<p.length;i++)if(i%3!==2)p[i]*=f;s.w*=f;delete s.b;}
+  P.texts=P.texts.map(t=>Object.assign({},t,{x:t.x*f,y:t.y*f,s:t.s*f},t.w?{w:t.w*f}:{}));
+  P.objs=P.objs.map(o=>{const n=Object.assign({},o,{x:o.x*f,y:o.y*f,w:o.w*f,h:o.h*f});if(o.lw)n.lw=o.lw*f;if(o.s)n.s=o.s*f;return n;});
+}
+async function applyResize(){
+  const z=readSize('r');if(!z)return;const mode=($('input[name=r-mode]:checked')||{}).value||'keep';
+  const z0=nbSize(NB),PH0=PH,PH1=Math.round(1000*z.h/z.w);
+  const f=mode==='fit'?Math.min(1,PH1/PH0):z0.w/z.w;
+  closeSheet();commitEd();ED=null;typer.remove();SEL=null;$('#selbar').hidden=true;
+  if(Math.abs(f-1)>1e-6){
+    toast('쪽을 맞추는 중이에요');
+    for(const pid of NB.pages){await loadPage(pid);const P=PG[pid];if(!P||!P.loaded)continue;scalePage(P,f);
+      for(let k=0;k<(P.kn||0);k++)dirty.chunks.add(pid+'|'+k);dirty.pages.add(pid);}
+  }
+  UNDO=[];REDO=[];undoBtns();
+  NB.size=z;applySize(NB);S.zoom=1;setPw();firstEdit();edited=true;touchMeta();
+  buildPages(curIdx);makeThumb();toast(sizeLabel(z)+'로 바꿨어요');
+}
+
 async function createNb(){
+  const size=readSize('n');if(!size)return;
   const title=$('#n-title').value.trim()||'새 노트',paper=($('#n-paper [aria-pressed=true]')||{dataset:{v:'blank'}}).dataset.v,id=uid(),pid=uid(),now=Date.now();
-  closeSheet();await Store.set('nb/'+id,{title,paper,created:now,updated:now,pages:[pid],thumb:''});await Store.set('pg/'+pid,{nb:id,texts:[],kn:0});openNb(id);
+  closeSheet();await Store.set('nb/'+id,{title,paper,size,created:now,updated:now,pages:[pid],thumb:''});await Store.set('pg/'+pid,{nb:id,texts:[],kn:0});openNb(id);
 }
 async function deleteNb(id){
   closeSheet();const nb=await Store.get('nb/'+id);if(!nb)return;
@@ -1398,6 +1478,7 @@ let wheelT=0;
 sc.addEventListener('wheel',e=>{if(!e.ctrlKey||!NB)return;e.preventDefault();zoomAt(S.zoom*Math.exp(-e.deltaY*0.01),e.clientX,e.clientY);clearTimeout(wheelT);wheelT=setTimeout(zoomDone,160);},{passive:false});
 window.addEventListener('resize',()=>{if(!NB)return;setPw();sc.scrollLeft=curIdx*sc.clientWidth;NB.pages.forEach(renderPage);drawSel();if(ED)placeTyper();});
 document.addEventListener('visibilitychange',onVisible);
+document.addEventListener('input',e=>{const m=/^(n|r)-(w|h)$/.exec(e.target.id||'');if(m)sizePrev(m[1]);});
 window.addEventListener('pagehide',()=>{flush();});
 document.addEventListener('click',async e=>{
   const tb=e.target.closest('[data-tool]');if(tb){setTool(tb.dataset.tool);return;}
@@ -1407,6 +1488,11 @@ document.addEventListener('click',async e=>{
     case 'nb-new':newNbSheet();break;
     case 'pick':el.parentNode.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c===el?'true':'false'));break;
     case 'nb-create':createNb();break;
+    case 'sz-pick':{const px=el.dataset.px;el.parentNode.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c===el?'true':'false'));
+      const free=v==='free';$('#'+px+'-free').hidden=!free;$('#'+px+'-orirow').hidden=free;sizePrev(px);break;}
+    case 'sz-ori':el.parentNode.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c===el?'true':'false'));sizePrev(el.dataset.px);break;
+    case 'resize':resizeSheet();break;
+    case 'resize-ok':applyResize();break;
     case 'nb-open':openNb(id);break;
     case 'sync-sheet':syncSheet();break;
     case 'install':doInstall();break;
@@ -1425,7 +1511,7 @@ document.addEventListener('click',async e=>{
     case 'undo':swap(UNDO,REDO);break;
     case 'redo':swap(REDO,UNDO);break;
     case 'color':S.color[toolNow()]=v;if(S.tool==='text'&&ED&&ED.kind==='text'){ED.c=v;placeTyper();}renderOpts();break;
-    case 'size':S.size[S.tool]=+v;if(S.tool==='text'&&ED&&ED.kind==='text'){ED.s=SIZES.text[+v];placeTyper();}renderOpts();break;
+    case 'size':S.size[S.tool]=+v;if(S.tool==='text'&&ED&&ED.kind==='text'){ED.s=sz('text',+v);placeTyper();}renderOpts();break;
     case 'shape-pick':S.shape=v;renderOpts();if(v==='fill'&&!setTool.seen.fill){setTool.seen.fill=1;toast('닫힌 도형 안쪽을 누르면 고른 색이 채워져요');}break;
     case 'erase-mode':S.erase=v;renderOpts();break;
     case 'step':{const k=el.dataset.k;S[k]=clamp(S[k]+(+el.dataset.d),1,12);renderOpts();break;}
@@ -1446,6 +1532,7 @@ document.addEventListener('click',async e=>{
       '<button type="button" data-act="page-dup">이 쪽 복사<small>지금 쪽과 똑같은 쪽을 바로 뒤에 하나 더 만들어요</small></button>'+
       '<button type="button" data-act="clear-page">이 쪽 모두 지우기<small>쪽은 남기고 적힌 것만 지워요. 되돌릴 수 있어요</small></button>'+
       '<button type="button" data-act="paper">종이 바꾸기<small>무지 · 줄 · 모눈 · 점</small></button>'+
+      '<button type="button" data-act="resize">크기·방향 바꾸기<small>지금 '+esc(sizeLabel(nbSize(NB)))+'</small></button>'+
       '<button type="button" data-act="page-del-ask" style="color:var(--red)">지금 보는 쪽 지우기</button></div>');break;
     case 'pan-mode':S.finger=v==='two';try{localStorage.setItem('note-pan',v);}catch(err){}closeSheet();toast(S.finger?'한 손가락은 쓰기, 두 손가락으로 움직여요':'한 손가락으로 움직여요. 쓰는 것은 펜으로 해요');break;
     case 'page-dup':dupPage();break;
